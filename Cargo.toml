@@ -1,0 +1,69 @@
+[package]
+name = "marquee"
+version = "0.1.0"
+edition = "2024"
+description = "Shows a native card with the cover, title and artist when a new song starts in the Spotify desktop app."
+license = "MIT"
+authors = ["hecker-01"]
+
+[[bin]]
+name = "Marquee"
+path = "src/main.rs"
+
+[features]
+default = ["tls"]
+# TLS for cover downloads. Turned off only to type-check macOS from Windows,
+# where the C crypto code of rustls cannot be cross-compiled.
+tls = ["reqwest/rustls"]
+
+[dependencies]
+anyhow = "1"
+auto-launch = "0.6"
+dirs = "7"
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp"] }
+reqwest = { version = "0.13", default-features = false, features = ["json"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+single-instance = "0.3"
+tao = "0.37"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time", "fs"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["fmt", "env-filter"] }
+tray-icon = "0.26"
+
+[target.'cfg(target_os = "windows")'.dependencies]
+windows = { version = "0.62", features = [
+    "Foundation",
+    "Foundation_Collections",
+    "Media_Control",
+    "Storage_Streams",
+    "UI",
+    "UI_ViewManagement",
+    "Win32_Foundation",
+    "Win32_Graphics_Direct2D",
+    "Win32_Graphics_Direct2D_Common",
+    "Win32_Graphics_DirectWrite",
+    "Win32_Graphics_Dwm",
+    "Win32_Graphics_Dxgi_Common",
+    "Win32_Graphics_Gdi",
+    "Win32_System_LibraryLoader",
+    "Win32_UI_Controls",
+    "Win32_UI_HiDpi",
+    "Win32_UI_WindowsAndMessaging",
+] }
+windows-numerics = "0.3"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+block2 = "0.6"
+objc2 = "0.6"
+objc2-app-kit = "0.3"
+objc2-core-foundation = "0.3"
+objc2-core-graphics = "0.3"
+objc2-foundation = "0.3"
+objc2-quartz-core = "0.3"
+
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true
+opt-level = "s"
