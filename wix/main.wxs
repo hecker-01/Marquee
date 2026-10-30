@@ -1,0 +1,69 @@
+<?xml version='1.0' encoding='windows-1252'?>
+<!--
+  Installer for Marquee. Build with `cargo wix` (cargo-wix and WiX Toolset 3).
+  cargo-wix passes Version and CargoTargetBinDir.
+-->
+<Wix xmlns='http://schemas.microsoft.com/wix/2006/wi'>
+  <Product
+      Id='*'
+      Name='Marquee'
+      UpgradeCode='7F4C2E6A-3B1D-4E8F-9A27-5C6D8E1F0B42'
+      Manufacturer='hecker-01'
+      Language='1033'
+      Codepage='1252'
+      Version='$(var.Version)'>
+
+    <Package Id='*'
+        Keywords='Installer'
+        Description='Marquee: a now-playing card for the Spotify desktop app'
+        Manufacturer='hecker-01'
+        InstallerVersion='450'
+        Languages='1033'
+        Compressed='yes'
+        InstallScope='perUser'
+        SummaryCodepage='1252'
+        Platform='x64'/>
+
+    <MajorUpgrade
+        Schedule='afterInstallInitialize'
+        DowngradeErrorMessage='A newer version of [ProductName] is already installed.'/>
+
+    <MediaTemplate EmbedCab='yes'/>
+
+    <Directory Id='TARGETDIR' Name='SourceDir'>
+      <Directory Id='LocalAppDataFolder'>
+        <Directory Id='Programs' Name='Programs'>
+          <Directory Id='APPLICATIONFOLDER' Name='Marquee'/>
+        </Directory>
+      </Directory>
+      <Directory Id='ProgramMenuFolder'/>
+    </Directory>
+
+    <DirectoryRef Id='APPLICATIONFOLDER'>
+      <Component Id='binary0' Guid='A1B2C3D4-5E6F-4A7B-8C9D-0E1F2A3B4C5D' Win64='yes'>
+        <File Id='exe0' Name='Marquee.exe' DiskId='1' Source='$(var.CargoTargetBinDir)\Marquee.exe'/>
+        <RegistryValue Root='HKCU' Key='Software\Marquee' Name='installed' Type='integer' Value='1' KeyPath='yes'/>
+        <RemoveFolder Id='RemoveAppFolder' Directory='APPLICATIONFOLDER' On='uninstall'/>
+        <RemoveFolder Id='RemoveProgramsFolder' Directory='Programs' On='uninstall'/>
+      </Component>
+    </DirectoryRef>
+
+    <DirectoryRef Id='ProgramMenuFolder'>
+      <Component Id='shortcut0' Guid='3E9B1C7D-2A4F-4F6B-9D1E-8C5A7B3F2E10'>
+        <Shortcut Id='startMenuShortcut' Name='Marquee' Target='[APPLICATIONFOLDER]Marquee.exe' WorkingDirectory='APPLICATIONFOLDER'/>
+        <RegistryValue Root='HKCU' Key='Software\Marquee' Name='shortcut' Type='integer' Value='1' KeyPath='yes'/>
+      </Component>
+    </DirectoryRef>
+
+    <Feature Id='Binaries' Title='Marquee' Level='1'>
+      <ComponentRef Id='binary0'/>
+      <ComponentRef Id='shortcut0'/>
+    </Feature>
+
+    <!-- Start Marquee when the installer finishes. -->
+    <CustomAction Id='LaunchMarquee' Directory='APPLICATIONFOLDER' ExeCommand='[APPLICATIONFOLDER]Marquee.exe' Return='asyncNoWait' Impersonate='yes'/>
+    <InstallExecuteSequence>
+      <Custom Action='LaunchMarquee' After='InstallFinalize'>NOT Installed AND NOT REMOVE</Custom>
+    </InstallExecuteSequence>
+  </Product>
+</Wix>
