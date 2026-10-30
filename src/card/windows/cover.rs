@@ -34,7 +34,7 @@ fn to_bgra(png: &[u8]) -> Option<(u32, u32, Vec<u8>)> {
     let img = image::load_from_memory(png).ok()?.to_rgba8();
     let (w, h) = img.dimensions();
     let mut px = img.into_raw();
-    for p in px.chunks_exact_mut(4) {
+    for p in px.as_chunks_mut::<4>().0 {
         let a = p[3] as u32;
         let (r, g, b) = (p[0] as u32 * a / 255, p[1] as u32 * a / 255, p[2] as u32 * a / 255);
         p[0] = b as u8;

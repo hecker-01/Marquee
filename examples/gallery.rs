@@ -132,7 +132,7 @@ mod win {
             let _ = DeleteObject(bmp.into());
             let _ = DeleteDC(mem);
             ReleaseDC(None, screen);
-            for p in px.chunks_exact_mut(4) {
+            for p in px.as_chunks_mut::<4>().0 {
                 p.swap(0, 2);
                 p[3] = 255;
             }

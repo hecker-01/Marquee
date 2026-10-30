@@ -185,7 +185,7 @@ mod tests {
     fn icon_has_opaque_and_clear_pixels() {
         let px = super::icon_rgba(32, [0, 0, 0]);
         assert_eq!(px.len(), 32 * 32 * 4);
-        assert!(px.chunks(4).any(|p| p[3] == 255));
-        assert!(px.chunks(4).any(|p| p[3] == 0));
+        assert!(px.as_chunks::<4>().0.iter().any(|p| p[3] == 255));
+        assert!(px.as_chunks::<4>().0.iter().any(|p| p[3] == 0));
     }
 }
