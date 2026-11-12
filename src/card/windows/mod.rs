@@ -12,7 +12,7 @@ mod system;
 mod window;
 
 use super::Card;
-use crate::anim::{self, CROSSFADE, Timeline};
+use crate::anim::{CROSSFADE, Timeline};
 use crate::model::CardContent;
 use crate::placement::{GAP, Rect, slide_position};
 use crate::settings::{Corner, Settings, Theme};
@@ -39,7 +39,7 @@ const FRAME_MS: u32 = 16;
 const HOVER_TIMER: usize = 3;
 /// Opacity the card fades to while the cursor is over it.
 const HOVER_OPACITY: f32 = 0.2;
-const HOVER_FADE: Duration = Duration::from_millis(150);
+const HOVER_FADE: Duration = Duration::from_millis(300);
 
 struct State {
     /// Null while no card shows.
@@ -308,7 +308,8 @@ impl State {
 
     /// Window alpha: the timeline opacity, lowered while the cursor is over the card.
     fn apply_opacity(&self) {
-        let hover = anim::ease_out_cubic(self.hover);
+        // Ease in and out, so the fade is soft at both ends in either direction.
+        let hover = self.hover * self.hover * (3.0 - 2.0 * self.hover);
         let alpha = self.opacity * (1.0 - hover * (1.0 - HOVER_OPACITY));
         // SAFETY: the window belongs to this thread.
         unsafe {
