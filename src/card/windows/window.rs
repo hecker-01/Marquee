@@ -1,7 +1,7 @@
 //! Window styling through DWM and the window procedure of the card.
 
 use super::system::WM_COLORS_CHANGED;
-use super::{FRAME_MS, FRAME_TIMER, HOLD_TIMER, State};
+use super::{FRAME_MS, FRAME_TIMER, HOLD_TIMER, HOVER_TIMER, State};
 use crate::settings::Theme;
 use std::cell::RefCell;
 use std::time::Instant;
@@ -69,6 +69,12 @@ pub(super) unsafe extern "system" fn wndproc(hwnd: HWND, msg: u32, wparam: WPARA
         let ptr = GetWindowLongPtrW(hwnd, GWLP_USERDATA) as *const RefCell<State>;
         let state = ptr.as_ref().and_then(|cell| cell.try_borrow_mut().ok());
         match (msg, state) {
+            (WM_TIMER, Some(mut s)) if wparam.0 == HOVER_TIMER => {
+                if s.visible {
+                    s.hover_step();
+                }
+                LRESULT(0)
+            }
             (WM_TIMER, Some(mut s)) => {
                 if wparam.0 == HOLD_TIMER {
                     let _ = KillTimer(Some(hwnd), HOLD_TIMER);
