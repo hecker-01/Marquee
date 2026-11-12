@@ -26,7 +26,7 @@ use std::sync::atomic::{AtomicIsize, Ordering};
 use std::time::{Duration, Instant};
 use system::{Colors, SystemColors};
 use window::wndproc;
-use windows::Win32::Foundation::{COLORREF, HWND};
+use windows::Win32::Foundation::{COLORREF, HWND, POINT, RECT};
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows::Win32::UI::WindowsAndMessaging::*;
 use windows::core::w;
@@ -34,6 +34,12 @@ use windows::core::w;
 const FRAME_TIMER: usize = 1;
 const HOLD_TIMER: usize = 2;
 const FRAME_MS: u32 = 16;
+/// Polls the cursor while the card shows. The window is click-through, so it
+/// gets no mouse messages of its own.
+const HOVER_TIMER: usize = 3;
+/// Opacity the card fades to while the cursor is over it.
+const HOVER_OPACITY: f32 = 0.2;
+const HOVER_FADE: Duration = Duration::from_millis(300);
 
 struct State {
     /// Null while no card shows.
@@ -56,6 +62,11 @@ struct State {
     visible: bool,
     backdrop: bool,
     dwm_corners: bool,
+    /// Opacity from the timeline, before the hover fade.
+    opacity: f32,
+    /// 0 when the cursor is away, 1 when the card is fully faded for hover.
+    hover: f32,
+    hover_at: Instant,
 }
 
 pub struct WinCard {
@@ -108,6 +119,9 @@ impl WinCard {
             visible: false,
             backdrop: false,
             dwm_corners: false,
+            opacity: 0.0,
+            hover: 0.0,
+            hover_at: Instant::now(),
         }));
         Ok(WinCard { state })
     }
@@ -181,6 +195,8 @@ impl Card for WinCard {
             s.start = now;
             s.current = Shown::new(content);
             s.previous = None;
+            s.hover = 0.0;
+            s.hover_at = now;
         }
         if restyle {
             s.apply_style();
@@ -191,6 +207,7 @@ impl Card for WinCard {
         unsafe {
             let _ = ShowWindow(s.hwnd, SW_SHOWNOACTIVATE);
             SetTimer(Some(s.hwnd), FRAME_TIMER, FRAME_MS, None);
+            SetTimer(Some(s.hwnd), HOVER_TIMER, FRAME_MS, None);
         }
     }
 
@@ -271,9 +288,9 @@ impl State {
                 0,
                 SWP_NOSIZE | SWP_NOACTIVATE,
             );
-            let _ =
-                SetLayeredWindowAttributes(self.hwnd, COLORREF(0), (frame.opacity * 255.0).round() as u8, LWA_ALPHA);
         }
+        self.opacity = frame.opacity;
+        self.apply_opacity();
         self.paint(frame.progress);
 
         // While holding with nothing moving, sleep until the hold ends.
@@ -286,6 +303,44 @@ impl State {
                 let _ = KillTimer(Some(self.hwnd), FRAME_TIMER);
                 SetTimer(Some(self.hwnd), HOLD_TIMER, left.as_millis().max(1) as u32, None);
             }
+        }
+    }
+
+    /// Window alpha: the timeline opacity, lowered while the cursor is over the card.
+    fn apply_opacity(&self) {
+        // Ease in and out, so the fade is soft at both ends in either direction.
+        let hover = self.hover * self.hover * (3.0 - 2.0 * self.hover);
+        let alpha = self.opacity * (1.0 - hover * (1.0 - HOVER_OPACITY));
+        // SAFETY: the window belongs to this thread.
+        unsafe {
+            let _ = SetLayeredWindowAttributes(self.hwnd, COLORREF(0), (alpha * 255.0).round() as u8, LWA_ALPHA);
+        }
+    }
+
+    /// Check the cursor and step the hover fade toward it.
+    fn hover_step(&mut self) {
+        let mut cursor = POINT::default();
+        let mut rect = RECT::default();
+        // SAFETY: plain queries with pointers to locals; the window belongs to this thread.
+        let over = unsafe {
+            GetCursorPos(&mut cursor).is_ok()
+                && GetWindowRect(self.hwnd, &mut rect).is_ok()
+                && cursor.x >= rect.left
+                && cursor.x < rect.right
+                && cursor.y >= rect.top
+                && cursor.y < rect.bottom
+        };
+        let now = Instant::now();
+        let step = (now - self.hover_at).as_secs_f32() / HOVER_FADE.as_secs_f32();
+        self.hover_at = now;
+        let next = if over {
+            (self.hover + step).min(1.0)
+        } else {
+            (self.hover - step).max(0.0)
+        };
+        if next != self.hover {
+            self.hover = next;
+            self.apply_opacity();
         }
     }
 

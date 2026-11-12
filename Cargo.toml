@@ -1,6 +1,6 @@
 [package]
 name = "marquee"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 description = "Shows a native card with the cover, title and artist when a new song starts in the Spotify desktop app."
 license = "MIT"
