@@ -8,6 +8,8 @@
   <string>Marquee</string>
   <key>CFBundleIdentifier</key>
   <string>io.github.hecker-01.marquee</string>
+  <key>CFBundleIconFile</key>
+  <string>Marquee</string>
   <key>CFBundleExecutable</key>
   <string>Marquee</string>
   <key>CFBundlePackageType</key>

@@ -16,6 +16,7 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 lipo -create -output "$APP/Contents/MacOS/Marquee" \
   target/aarch64-apple-darwin/release/Marquee \
   target/x86_64-apple-darwin/release/Marquee
+cp packaging/macos/Marquee.icns "$APP/Contents/Resources/"
 sed "s/__VERSION__/$VERSION/g" packaging/macos/Info.plist > "$APP/Contents/Info.plist"
 
 # Ad-hoc signature for local tests. Release builds need a Developer ID.

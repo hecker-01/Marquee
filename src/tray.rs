@@ -149,7 +149,7 @@ fn pick<T: Copy>(items: &[(T, CheckMenuItem)], id: &MenuId) -> Option<T> {
 }
 
 /// Draw the icon: a marquee sign, a rounded board framed by a row of bulbs.
-fn icon_rgba(size: u32, color: [u8; 3]) -> Vec<u8> {
+pub fn icon_rgba(size: u32, color: [u8; 3]) -> Vec<u8> {
     let s = size as f32;
     let mut out = vec![0u8; (size * size * 4) as usize];
     let board = |x: f32, y: f32| {
