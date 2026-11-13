@@ -19,9 +19,9 @@ use objc2_quartz_core::{
     kCAMediaTimingFunctionLinear, kCATransitionFade,
 };
 use std::cell::{Cell, RefCell};
-use std::time::{Duration, Instant};
 use std::ptr::NonNull;
 use std::rc::Rc;
+use std::time::{Duration, Instant};
 use views::Views;
 
 /// Opacity the card fades to while the cursor is over it, as on Windows.

@@ -13,7 +13,10 @@ fn main() -> anyhow::Result<()> {
     init_logging();
     // On macOS the name is a file path; a Finder launch has the read-only "/" as cwd.
     #[cfg(target_os = "macos")]
-    let name = std::env::temp_dir().join("Marquee-6f1c2a.lock").to_string_lossy().into_owned();
+    let name = std::env::temp_dir()
+        .join("Marquee-6f1c2a.lock")
+        .to_string_lossy()
+        .into_owned();
     #[cfg(not(target_os = "macos"))]
     let name = "Marquee-6f1c2a".to_string();
     let instance = single_instance::SingleInstance::new(&name)?;
