@@ -19,9 +19,15 @@ use objc2_quartz_core::{
     kCAMediaTimingFunctionLinear, kCATransitionFade,
 };
 use std::cell::{Cell, RefCell};
+use std::time::{Duration, Instant};
 use std::ptr::NonNull;
 use std::rc::Rc;
 use views::Views;
+
+/// Opacity the card fades to while the cursor is over it, as on Windows.
+const HOVER_OPACITY: f64 = 0.2;
+const HOVER_FADE: Duration = Duration::from_millis(300);
+const HOVER_POLL: f64 = 1.0 / 60.0;
 
 #[derive(Clone, Copy, PartialEq)]
 enum Phase {
@@ -37,6 +43,11 @@ struct Inner {
     /// Bumped on every show and hide so stale timers and completions do nothing.
     generation: Cell<u64>,
     timer: RefCell<Option<Retained<NSTimer>>>,
+    /// Polls the cursor while the card shows (the panel ignores mouse events).
+    hover_timer: RefCell<Option<Retained<NSTimer>>>,
+    /// 0 when the cursor is away, 1 when the card is fully faded for hover.
+    hover: Cell<f64>,
+    hover_at: Cell<Instant>,
     rest: Cell<NSRect>,
     start: Cell<NSRect>,
     edge: Cell<f64>,
@@ -58,6 +69,9 @@ impl MacCard {
             phase: Cell::new(Phase::Hidden),
             generation: Cell::new(0),
             timer: RefCell::new(None),
+            hover_timer: RefCell::new(None),
+            hover: Cell::new(0.0),
+            hover_at: Cell::new(Instant::now()),
             rest: Cell::new(empty),
             start: Cell::new(empty),
             edge: Cell::new(SLIDE.as_secs_f64()),
@@ -190,7 +204,46 @@ impl Inner {
         if let Some(t) = self.timer.borrow_mut().take() {
             t.invalidate();
         }
+        if let Some(t) = self.hover_timer.borrow_mut().take() {
+            t.invalidate();
+        }
         self.views.panel.orderOut(None);
+    }
+
+    fn start_hover(self: &Rc<Self>) {
+        if let Some(t) = self.hover_timer.borrow_mut().take() {
+            t.invalidate();
+        }
+        self.hover.set(0.0);
+        self.hover_at.set(Instant::now());
+        let me = self.clone();
+        let poll = RcBlock::new(move |_: NonNull<NSTimer>| me.hover_step());
+        // SAFETY: the timer retains the block; hide() invalidates it.
+        let timer = unsafe { NSTimer::scheduledTimerWithTimeInterval_repeats_block(HOVER_POLL, true, &poll) };
+        *self.hover_timer.borrow_mut() = Some(timer);
+    }
+
+    /// Step the hover fade toward the cursor. Only the hold phase sets the
+    /// alpha; entering and leaving animate it themselves and start from here.
+    fn hover_step(&self) {
+        let panel = &self.views.panel;
+        let frame = panel.frame();
+        let p = NSEvent::mouseLocation();
+        let over = p.x >= frame.origin.x
+            && p.x < frame.origin.x + frame.size.width
+            && p.y >= frame.origin.y
+            && p.y < frame.origin.y + frame.size.height;
+        let now = Instant::now();
+        let step = (now - self.hover_at.get()).as_secs_f64() / HOVER_FADE.as_secs_f64();
+        self.hover_at.set(now);
+        let h = self.hover.get();
+        let next = if over { (h + step).min(1.0) } else { (h - step).max(0.0) };
+        self.hover.set(next);
+        if next != h && self.phase.get() == Phase::Holding {
+            // Ease in and out, so the fade is soft at both ends.
+            let eased = next * next * (3.0 - 2.0 * next);
+            panel.setAlphaValue(1.0 - eased * (1.0 - HOVER_OPACITY));
+        }
     }
 
     /// Fade the content view to its new state.
@@ -237,6 +290,7 @@ impl Card for MacCard {
                 me.views.panel.setAlphaValue(0.0);
                 me.views.panel.setFrame_display(me.start.get(), false);
                 me.views.panel.orderFrontRegardless();
+                me.start_hover();
                 me.enter();
             }
             phase => {
